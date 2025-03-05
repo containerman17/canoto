@@ -139,19 +139,18 @@ function encodeFixed32(value: number): Uint8Array {
 function encodeFixed64(value: number | bigint): Uint8Array {
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
+    const bytes = new Uint8Array(buffer);
 
     // Handle both number and BigInt
-    const valueBigInt = typeof value === 'bigint' ? value : BigInt(value);
+    let valueBigInt = typeof value === 'bigint' ? value : BigInt(value);
 
-    // Split into high and low 32-bit parts
-    const low = Number(valueBigInt & BigInt(0xFFFFFFFF));
-    const high = Number(valueBigInt >> BigInt(32));
+    // Encode 8 bytes in little-endian order
+    for (let i = 0; i < 8; i++) {
+        bytes[i] = Number(valueBigInt & BigInt(0xFF));
+        valueBigInt = valueBigInt >> BigInt(8);
+    }
 
-    // Write in little-endian order
-    view.setUint32(0, low, true);
-    view.setUint32(4, high, true);
-
-    return new Uint8Array(buffer);
+    return bytes;
 }
 
 // Helper function to encode zigzag
@@ -168,7 +167,20 @@ function encodeZigZag64(value: number | bigint): bigint {
 const marshalFuncs: Record<string, (value: any) => Uint8Array> = {
     // VARINT wire type (0)
     "int32": (value: number) => encodeVarint(value),
-    "int64": (value: number) => encodeVarint(value),
+    "int64": (value: number | bigint) => {
+        const valueBigInt = typeof value === 'bigint' ? value : BigInt(value);
+        // Convert BigInt to byte array in little-endian order
+        const bytes: number[] = [];
+        let tempValue = valueBigInt;
+
+        while (tempValue > BigInt(0x7F)) {
+            bytes.push(Number((tempValue & BigInt(0x7F)) | BigInt(0x80)));
+            tempValue >>= BigInt(7);
+        }
+        bytes.push(Number(tempValue));
+
+        return new Uint8Array(bytes);
+    },
     "uint32": (value: number) => encodeVarint(value),
     "uint64": (value: number | bigint) => {
         const valueBigInt = typeof value === 'bigint' ? value : BigInt(value);
