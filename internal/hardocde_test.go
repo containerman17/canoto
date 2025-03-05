@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed testdata/scalars.json
+//go:embed testdata/scalarsDev.json
 var scalarsJSON []byte
 
-//go:embed testdata/scalars.hex
+//go:embed testdata/scalarsDev.hex
 var scalarsHex string
 
 func TestHardcodeScalars(t *testing.T) {

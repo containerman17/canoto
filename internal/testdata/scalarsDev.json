@@ -1,0 +1,6 @@
+{
+    "Int8": 42,
+    "Int16": 1024,
+    "Bool": true,
+    "String": "hello world"
+}

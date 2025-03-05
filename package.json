@@ -1,0 +1,16 @@
+{
+  "name": "canoto",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "protobufjs": "^7.4.0",
+    "vitest": "^3.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9"
+  },
+  "scripts": {
+    "test": "vitest"
+  }
+}
