@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "lossless-json": "^4.0.2",
     "protobufjs": "^7.4.0",
     "vitest": "^3.0.7"
   },

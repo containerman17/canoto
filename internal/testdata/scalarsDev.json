@@ -1,6 +1,3 @@
 {
-    "Int8": 42,
-    "Int16": 1024,
-    "Bool": true,
-    "String": "hello world"
+    "Uint64": 18446744073709551000
 }

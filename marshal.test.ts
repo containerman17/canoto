@@ -1,6 +1,7 @@
 import * as protobuf from "protobufjs";
 import * as fs from "fs";
 import { it, describe, expect } from "vitest";
+import { parse, stringify } from 'lossless-json'
 
 function toHex(arr: Uint8Array): string {
     let output = ''
@@ -15,7 +16,7 @@ describe("marshal", () => {
         const protoStr = fs.readFileSync("./internal/canoto.proto", "utf8")
         const inputJson = fs.readFileSync("./internal/testdata/scalarsDev.json", "utf8")
         const expectedObjectHex = fs.readFileSync("./internal/testdata/scalarsDev.hex", "utf8").trim()
-        const actualObjectBuffer = canotoMarshal(protoStr, JSON.parse(inputJson), "Scalars")
+        const actualObjectBuffer = canotoMarshal(protoStr, parse(inputJson), "Scalars")
         expect(toHex(actualObjectBuffer)).toEqual(expectedObjectHex)
     })
 })
@@ -47,6 +48,10 @@ function canotoMarshal(protobufFile: string, object: any, objectName: string): U
             let wireType = 0; // Default to VARINT
             if (type === "string" || type === "bytes") {
                 wireType = 2; // LEN for string/bytes
+            } else if (type === "fixed32" || type === "sfixed32" || type === "float") {
+                wireType = 5; // I32 for 4-byte values
+            } else if (type === "fixed64" || type === "sfixed64" || type === "double") {
+                wireType = 1; // I64 for 8-byte values
             }
 
             // Get tag (field number << 3 | wire_type)
@@ -106,11 +111,105 @@ function encodeString(str: string): Uint8Array {
     return concatUint8Arrays(lengthBuffer, bytes);
 }
 
-// Update the marshaling functions
+// Helper function to encode bytes
+function encodeBytes(bytes: Uint8Array | string): Uint8Array {
+    // If input is a base64 string, convert it to bytes
+    let byteArray: Uint8Array;
+    if (typeof bytes === 'string') {
+        byteArray = Uint8Array.from(atob(bytes), c => c.charCodeAt(0));
+    } else {
+        byteArray = bytes;
+    }
+
+    // Prepend the length as a varint
+    const lengthBuffer = encodeVarint(byteArray.length);
+
+    return concatUint8Arrays(lengthBuffer, byteArray);
+}
+
+// Helper function to encode fixed32
+function encodeFixed32(value: number): Uint8Array {
+    const buffer = new ArrayBuffer(4);
+    const view = new DataView(buffer);
+    view.setUint32(0, value, true); // true = little endian
+    return new Uint8Array(buffer);
+}
+
+// Helper function to encode fixed64
+function encodeFixed64(value: number | bigint): Uint8Array {
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+
+    // Handle both number and BigInt
+    const valueBigInt = typeof value === 'bigint' ? value : BigInt(value);
+
+    // Split into high and low 32-bit parts
+    const low = Number(valueBigInt & BigInt(0xFFFFFFFF));
+    const high = Number(valueBigInt >> BigInt(32));
+
+    // Write in little-endian order
+    view.setUint32(0, low, true);
+    view.setUint32(4, high, true);
+
+    return new Uint8Array(buffer);
+}
+
+// Helper function to encode zigzag
+function encodeZigZag32(value: number): number {
+    return (value << 1) ^ (value >> 31);
+}
+
+function encodeZigZag64(value: number | bigint): bigint {
+    const valueBigInt = typeof value === 'bigint' ? value : BigInt(value);
+    return (valueBigInt << BigInt(1)) ^ (valueBigInt >> BigInt(63));
+}
+
+// Update the marshaling functions with all supported types
 const marshalFuncs: Record<string, (value: any) => Uint8Array> = {
+    // VARINT wire type (0)
     "int32": (value: number) => encodeVarint(value),
+    "int64": (value: number) => encodeVarint(value),
     "uint32": (value: number) => encodeVarint(value),
+    "uint64": (value: number | bigint) => {
+        const valueBigInt = typeof value === 'bigint' ? value : BigInt(value);
+        // Convert BigInt to byte array in little-endian order
+        const bytes: number[] = [];
+        let tempValue = valueBigInt;
+
+        while (tempValue > BigInt(0x7F)) {
+            bytes.push(Number((tempValue & BigInt(0x7F)) | BigInt(0x80)));
+            tempValue >>= BigInt(7);
+        }
+        bytes.push(Number(tempValue));
+
+        return new Uint8Array(bytes);
+    },
+    "sint32": (value: number) => encodeVarint(encodeZigZag32(value)),
+    "sint64": (value: number) => {
+        const zigzag = encodeZigZag64(value);
+        // Now encode the zigzag value as a varint
+        const bytes: number[] = [];
+        let tempValue = zigzag;
+
+        while (tempValue > BigInt(0x7F)) {
+            bytes.push(Number((tempValue & BigInt(0x7F)) | BigInt(0x80)));
+            tempValue >>= BigInt(7);
+        }
+        bytes.push(Number(tempValue));
+
+        return new Uint8Array(bytes);
+    },
     "bool": (value: boolean) => encodeVarint(value ? 1 : 0),
+
+    // I32 wire type (5)
+    "fixed32": (value: number) => encodeFixed32(value),
+    "sfixed32": (value: number) => encodeFixed32(value), // Same encoding, different interpretation
+
+    // I64 wire type (1)
+    "fixed64": (value: number | bigint) => encodeFixed64(value),
+    "sfixed64": (value: number | bigint) => encodeFixed64(value), // Same encoding, different interpretation
+
+    // LEN wire type (2)
     "string": (value: string) => encodeString(value),
-    // We can add more types as needed
+    "bytes": (value: string) => encodeBytes(value),
 }
