@@ -1,6 +1,7 @@
 package examples
 
 import (
+	"encoding/hex"
 	"slices"
 	"strconv"
 	"testing"
@@ -1386,9 +1387,10 @@ func BenchmarkScalars_Proto(b *testing.B) {
 
 func TestAppend_ProtoCompatibility(t *testing.T) {
 	tests := []struct {
-		name  string
-		proto protoreflect.ProtoMessage
-		f     func(*canoto.Writer)
+		name     string
+		proto    protoreflect.ProtoMessage
+		f        func(*canoto.Writer)
+		valueHex string
 	}{
 		{
 			name: "int8",
@@ -1399,6 +1401,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(1, canoto.Varint))
 				canoto.AppendInt[int8](w, 52)
 			},
+			valueHex: "0834",
 		},
 		{
 			name: "int16",
@@ -1409,6 +1412,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(2, canoto.Varint))
 				canoto.AppendInt[int16](w, 1234)
 			},
+			valueHex: "10d209",
 		},
 		{
 			name: "int32",
@@ -1419,6 +1423,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(3, canoto.Varint))
 				canoto.AppendInt[int32](w, 121234)
 			},
+			valueHex: "1892b307",
 		},
 		{
 			name: "int64",
@@ -1429,6 +1434,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(4, canoto.Varint))
 				canoto.AppendInt[int64](w, 259)
 			},
+			valueHex: "208302",
 		},
 		{
 			name: "uint8",
@@ -1439,6 +1445,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(5, canoto.Varint))
 				canoto.AppendInt[uint8](w, 9)
 			},
+			valueHex: "2809",
 		},
 		{
 			name: "uint16",
@@ -1449,6 +1456,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(6, canoto.Varint))
 				canoto.AppendInt[uint16](w, 1234)
 			},
+			valueHex: "30d209",
 		},
 		{
 			name: "uint32",
@@ -1459,6 +1467,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(7, canoto.Varint))
 				canoto.AppendInt[uint32](w, 1234)
 			},
+			valueHex: "38d209",
 		},
 		{
 			name: "uint64",
@@ -1469,6 +1478,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(8, canoto.Varint))
 				canoto.AppendInt[uint64](w, 2938567)
 			},
+			valueHex: "40c7adb301",
 		},
 		{
 			name: "sint8",
@@ -1479,6 +1489,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(9, canoto.Varint))
 				canoto.AppendSint[int8](w, -52)
 			},
+			valueHex: "4867",
 		},
 		{
 			name: "sint16",
@@ -1489,6 +1500,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(10, canoto.Varint))
 				canoto.AppendSint[int16](w, -1234)
 			},
+			valueHex: "50a313",
 		},
 		{
 			name: "sint32",
@@ -1499,6 +1511,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(11, canoto.Varint))
 				canoto.AppendSint[int32](w, -2136745)
 			},
+			valueHex: "58d1ea8402",
 		},
 		{
 			name: "sint64",
@@ -1509,6 +1522,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(12, canoto.Varint))
 				canoto.AppendSint[int64](w, -9287364)
 			},
+			valueHex: "6087dbed08",
 		},
 		{
 			name: "fixed32",
@@ -1519,6 +1533,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(13, canoto.I32))
 				canoto.AppendFint32[uint32](w, 876254)
 			},
+			valueHex: "6dde5e0d00",
 		},
 		{
 			name: "fixed64",
@@ -1529,6 +1544,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(14, canoto.I64))
 				canoto.AppendFint64[uint64](w, 328137645632)
 			},
+			valueHex: "71401e87664c000000",
 		},
 		{
 			name: "sfixed32",
@@ -1539,6 +1555,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(15, canoto.I32))
 				canoto.AppendFint32[int32](w, -123463246)
 			},
+			valueHex: "7db219a4f8",
 		},
 		{
 			name: "sfixed64",
@@ -1549,6 +1566,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(16, canoto.I64))
 				canoto.AppendFint64[int64](w, -8762135423)
 			},
+			valueHex: "8101816cbcf5fdffffff",
 		},
 		{
 			name: "bool",
@@ -1559,6 +1577,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(17, canoto.Varint))
 				canoto.AppendBool(w, true)
 			},
+			valueHex: "880101",
 		},
 		{
 			name: "string",
@@ -1569,6 +1588,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(18, canoto.Len))
 				canoto.AppendBytes(w, "hi mom!")
 			},
+			valueHex: "9201076869206d6f6d21",
 		},
 		{
 			name: "bytes",
@@ -1579,6 +1599,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(19, canoto.Len))
 				canoto.AppendBytes(w, []byte("hi dad!"))
 			},
+			valueHex: "9a010768692064616421",
 		},
 		{
 			name: "largest field number",
@@ -1589,6 +1610,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 				canoto.Append(w, canoto.Tag(canoto.MaxFieldNumber, canoto.Varint))
 				canoto.AppendInt[int32](w, 1)
 			},
+			valueHex: "f8ffffff0f01",
 		},
 	}
 	for _, test := range tests {
@@ -1599,6 +1621,7 @@ func TestAppend_ProtoCompatibility(t *testing.T) {
 			w := &canoto.Writer{}
 			test.f(w)
 			require.Equal(t, pbBytes, w.B)
+			require.Equal(t, test.valueHex, hex.EncodeToString(w.B))
 		})
 	}
 }
